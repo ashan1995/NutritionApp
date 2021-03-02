@@ -1,10 +1,12 @@
 ﻿using FitnessApp.Models;
 using FitnessAppData;
 using FitnessAppData.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace FitnessApp.Controllers
@@ -18,15 +20,31 @@ namespace FitnessApp.Controllers
         public UserController(IUserData userData) {
             _userData = userData;
         }
-        [HttpGet("{id}")]
-        public IActionResult GetUser([FromRoute] int id)
+
+        [HttpGet("getall")]
+        public IActionResult GetAll() {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+    
+            return Ok(_userData.GetAll());
+
+        }
+
+
+
+        [Authorize]
+        [HttpGet]
+        public IActionResult GetUser()
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-      
-            return Ok(_userData.GetById(id));
+            var userName = Int32.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+
+            return Ok(_userData.GetById(userName));
         }
 
         [HttpPost("authenticate")]
@@ -45,6 +63,18 @@ namespace FitnessApp.Controllers
             return Ok(response);
         }
 
+        [HttpGet("fitnessschedules/{id}")]
+        public IActionResult FitnessSchedules([FromRoute] int id) {
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            return Ok(_userData.GetSchedules(id));
+        }
+
+
 
 
         [HttpPost]
@@ -55,21 +85,9 @@ namespace FitnessApp.Controllers
                 return BadRequest(ModelState);
             }
 
-            var user = new User
-            {
-                FirstName = register.FirstName,
-                LastName = register.LastName,
-                DOB = register.DOB,
-                Email = register.Email,
-                Password = register.Password,
-                Gender = register.Gender,
-                TelNo = register.TelNo,
-                FitnessPackage = _userData.GetFitnessPackage(register.FitnessPackage),
-                NutritionPackage = _userData.GetNutritionPackage(register.NutritionPackage)
-            };
-            _userData.Add(user);
+            _userData.Add(register, Request.Headers["origin"]);
 
-            return CreatedAtAction("GetUser", new { id = user.Id }, user);
+            return CreatedAtAction("GetUser", new { id = register.FirstName }, register);
         }
     }
 }

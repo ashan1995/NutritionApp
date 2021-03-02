@@ -27,6 +27,7 @@ namespace FitnessApp.Controllers
 
 
 
+
         [HttpPost]
         public IActionResult AddSchedule([FromBody] Schedule schedule)
         {

@@ -61,6 +61,8 @@ namespace FitnessApp
 
             services.AddSingleton(Configuration);
             services.AddScoped<IUserData, UserDataService>();
+            services.AddScoped<IScheduleData, ScheduleService>();
+            services.AddScoped<IEmailService, EmailService>();
             services.AddDbContext<FitnessAppContext>(options => options.UseSqlServer(
                 Configuration.GetConnectionString("FitnessAppConnections")
                 )); ;
@@ -78,6 +80,8 @@ namespace FitnessApp
             app.UseHttpsRedirection();
 
             app.UseRouting();
+
+            app.UseAuthentication();
 
             app.UseAuthorization();
 

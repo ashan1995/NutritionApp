@@ -8,7 +8,10 @@ namespace FitnessAppData.Models
     {
         public int Id { get; set; }
         public DateTime FitnessDate { get; set; }
-        public FitnessType FitnessTyoe { get; set; }
+        public FitnessType FitnessType { get; set; }
+
+        public int UserId { get; set; }
+        public User User { get; set; }
 
     }
 }

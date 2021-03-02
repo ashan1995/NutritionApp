@@ -1,4 +1,5 @@
-﻿using FitnessAppData.Models;
+﻿using FitnessApp.Models;
+using FitnessAppData.Models;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,7 +10,7 @@ namespace FitnessAppData
     {
         IEnumerable<User> GetAll();
         User GetById(int id);
-        void Add(User newUser);
+        void Add(Register newUser, string origin);
         string GetFirstName(int id);
         string GetLastName(int id);
         string GetEmail(int id);
@@ -25,6 +26,10 @@ namespace FitnessAppData
         IEnumerable<FitnessSchedule> GetSchedules(int id);
 
         AuthenticateResponse Authenticate(AuthenticateRequest model);
+
+        void ForgetPassword();
+
+        void VerifyAccount();
 
     }
 }
