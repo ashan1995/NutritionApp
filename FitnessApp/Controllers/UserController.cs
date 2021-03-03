@@ -1,6 +1,7 @@
 ﻿using FitnessApp.Models;
 using FitnessAppData;
 using FitnessAppData.Models;
+using FitnessAppData.Models.HelperModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -75,6 +76,27 @@ namespace FitnessApp.Controllers
         }
 
 
+        [HttpGet("verify-email")]
+        public IActionResult VerifyEmail(string token)
+        {
+            _userData.VerifyEmail(token);
+            return Ok(new { message = "Verification successful, you can now login" });
+        }
+
+
+        [HttpPost("forgot-password")]
+        public IActionResult ForgotPassword([FromBody] ForgotPasswordRequest model)
+        {
+            _userData.ForgotPassword(model, Request.Headers["origin"]);
+            return Ok(new { message = "Please check your email for password reset instructions" });
+        }
+
+        [HttpPost("reset-password")]
+        public IActionResult ResetPassword([FromBody] PasswordResetRequest model)
+        {
+            _userData.ResetPassword(model);
+            return Ok(new { message = "Password reset success" });
+        }
 
 
         [HttpPost]

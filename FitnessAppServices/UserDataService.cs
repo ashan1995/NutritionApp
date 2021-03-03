@@ -1,6 +1,7 @@
 ﻿using FitnessApp.Models;
 using FitnessAppData;
 using FitnessAppData.Models;
+using FitnessAppServices.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -11,6 +12,10 @@ using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
+using FitnessAppData.Models.HelperModels;
 
 namespace FitnessAppServices
 {
@@ -19,11 +24,16 @@ namespace FitnessAppServices
         private FitnessAppContext _dbcontext;
         private readonly AppSettings _appSettings;
         private IEmailService _emailService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private LinkGenerator _linkGenerator;
 
-        public UserDataService(FitnessAppContext dbcontext, IOptions<AppSettings> appSettings,IEmailService emailService) {
+        public UserDataService(FitnessAppContext dbcontext, IOptions<AppSettings> appSettings,IEmailService emailService, IHttpContextAccessor httpContextAccessor,LinkGenerator linkGenerator) {
             _dbcontext = dbcontext;
             _appSettings = appSettings.Value;
             _emailService = emailService;
+            _httpContextAccessor = httpContextAccessor;
+            _linkGenerator = linkGenerator;
+          
         }
 
         public void Add(Register newUser, string origin)
@@ -57,13 +67,26 @@ namespace FitnessAppServices
             sendVerificationEmail(user, origin);
         }
 
+        public void VerifyEmail(string token)
+        {
+            var account = _dbcontext.Users.SingleOrDefault(x => x.VerificationToken == token);
+
+            if (account == null) throw new AppException("Verification failed");
+
+            account.Verified = DateTime.UtcNow;
+            account.VerificationToken = null;
+
+            _dbcontext.Users.Update(account);
+            _dbcontext.SaveChanges();
+        }
+
         public AuthenticateResponse Authenticate(AuthenticateRequest model)
         {
 
             var user = _dbcontext.Users.FirstOrDefault(user=>(user.Email==model.Email && user.Password==model.Password) );
 
             // return null if user not found
-            if (user == null) return null;
+            if (user == null || !user.IsVerified) return null;
 
             // authentication successful so generate jwt token
             var token = generateJwtToken(user);
@@ -139,10 +162,43 @@ namespace FitnessAppServices
             return tokenHandler.WriteToken(token);
         }
 
-        public void ForgetPassword()
+        public void ForgotPassword(ForgotPasswordRequest model, string origin)
         {
-            throw new NotImplementedException();
+            var account = _dbcontext.Users.SingleOrDefault(x => x.Email == model.Email);
+
+            // always return ok response to prevent email enumeration
+            if (account == null) return;
+
+            // create reset token that expires after 1 day
+            account.ResetToken = randomTokenString();
+            account.ResetTokenExpires = DateTime.UtcNow.AddDays(1);
+
+            _dbcontext.Users.Update(account);
+            _dbcontext.SaveChanges();
+
+            // send email
+            sendPasswordResetEmail(account, origin);
         }
+
+        public void ResetPassword(PasswordResetRequest model)
+        {
+            var account = _dbcontext.Users.SingleOrDefault(x =>
+                x.ResetToken == model.Token &&
+                x.ResetTokenExpires > DateTime.UtcNow);
+
+            if (account == null)
+                throw new AppException("Invalid token");
+
+            // update password and remove reset token
+            account.Password = model.Password;
+            account.PasswordReset = DateTime.UtcNow;
+            account.ResetToken = null;
+            account.ResetTokenExpires = null;
+
+            _dbcontext.Users.Update(account);
+            _dbcontext.SaveChanges();
+        }
+
 
         public void VerifyAccount()
         {
@@ -177,16 +233,25 @@ namespace FitnessAppServices
         private void sendVerificationEmail(User account, string origin)
         {
             string message;
+            
+   
             if (!string.IsNullOrEmpty(origin))
             {
-                var verifyUrl = $"{origin}/account/verify-email?token={account.VerificationToken}";
+                var verifyUrl = $"{origin}/api/user/verify-email?token={account.VerificationToken }";
                 message = $@"<p>Please click the below link to verify your email address:</p>
                              <p><a href=""{verifyUrl}"">{verifyUrl}</a></p>";
             }
             else
             {
-                message = $@"<p>Please use the below token to verify your email address with the <code>/accounts/verify-email</code> api route:</p>
-                             <p><code>{account.VerificationToken}</code></p>";
+
+                var url = _linkGenerator.GetUriByAction(_httpContextAccessor.HttpContext,
+                    action: "VerifyEmail",
+                    controller:"User",
+                    values: new { token=account.VerificationToken }
+                );
+                
+                message = $@"<p>Please click the below link to verify your email address:</p>
+                             <p><a href=""{url}"">{url}</a></p>";
             }
 
             _emailService.Send(
@@ -198,6 +263,27 @@ namespace FitnessAppServices
             );
         }
 
-       
+        private void sendPasswordResetEmail(User account, string origin)
+        {
+            string message;
+            if (!string.IsNullOrEmpty(origin))
+            {
+                var resetUrl = $"{origin}/api/user/reset-password?token={account.ResetToken}";
+                message = $@"<p>Please click the below link to reset your password, the link will be valid for 1 day:</p>
+                             <p><a href=""{resetUrl}"">{resetUrl}</a></p>";
+            }
+            else
+            {
+                message = $@"<p>Please use the below token to reset your password with the <code>/accounts/reset-password</code> api route:</p>
+                             <p><code>{account.ResetToken}</code></p>";
+            }
+
+            _emailService.Send(
+                to: account.Email,
+                subject: "Sign-up Verification API - Reset Password",
+                html: $@"<h4>Reset Password Email</h4>
+                         {message}"
+            );
+        }
     }
 }

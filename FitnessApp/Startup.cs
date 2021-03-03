@@ -4,11 +4,13 @@ using FitnessAppServices;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
@@ -58,9 +60,12 @@ namespace FitnessApp
                     ValidateAudience = false
                 };
             });
-
+          
             services.AddSingleton(Configuration);
+            services.AddHttpContextAccessor();
+
             services.AddScoped<IUserData, UserDataService>();
+           
             services.AddScoped<IScheduleData, ScheduleService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddDbContext<FitnessAppContext>(options => options.UseSqlServer(
@@ -76,7 +81,6 @@ namespace FitnessApp
                 app.UseDeveloperExceptionPage();
             }
 
-         
             app.UseHttpsRedirection();
 
             app.UseRouting();
@@ -89,6 +93,7 @@ namespace FitnessApp
             {
                 endpoints.MapControllers();
             });
+
         }
     }
 }

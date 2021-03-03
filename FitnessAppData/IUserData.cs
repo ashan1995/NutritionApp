@@ -1,5 +1,6 @@
 ﻿using FitnessApp.Models;
 using FitnessAppData.Models;
+using FitnessAppData.Models.HelperModels;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -27,9 +28,11 @@ namespace FitnessAppData
 
         AuthenticateResponse Authenticate(AuthenticateRequest model);
 
-        void ForgetPassword();
+        void ForgotPassword(ForgotPasswordRequest model, string origin);
 
-        void VerifyAccount();
+        void ResetPassword(PasswordResetRequest model);
+
+        void VerifyEmail(string token);
 
     }
 }
